@@ -1,2 +1,9 @@
-# ewebsocket
-Test application to test erlang websocket with cowboy
+ewebsocket
+=====
+
+An OTP application
+
+Build
+-----
+
+    $ rebar3 compile
