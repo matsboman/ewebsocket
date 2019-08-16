@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 07. Aug 2019 2:01 PM
 %%%-------------------------------------------------------------------
--module(game_object).
+-module(planet_object).
 -author("mb189v").
 -behaviour(gen_server).
 
@@ -35,9 +35,9 @@ start_link(Seed) ->
 %======================================================================================================
 
 init(Seed) ->
-  io:fwrite("init game_object~p~n", [Seed]),
+  io:fwrite("init planet_object~p~n", [Seed]),
   erlang:send_after(10, self(), timeout_tick),
-  {ok, Seed}.
+  {ok, {Seed, 0}}.
 
 handle_call(_Request, _From, State) ->
 %%  io:fwrite("handle_call ~p~n", [State]),
@@ -47,16 +47,15 @@ handle_cast(_Info, State) ->
   io:fwrite("handle_cast ~p~n", [?MODULE]),
   {noreply, State}.
 
-handle_info(timeout_tick, {Id, Position, _}) when Position > 400 ->
+handle_info(timeout_tick, {{Id, {X, Y, Z, R, T0, T}}, Tau}) ->
   erlang:send_after(10, self(), timeout_tick),
-  {noreply, {Id, Position + 1 * -1, -1}};
-handle_info(timeout_tick, {Id, Position, _}) when Position < -400 ->
-  erlang:send_after(10, self(), timeout_tick),
-  {noreply, {Id, Position + 1, 1}};
-handle_info(timeout_tick, {Id, Position, Direction}) ->
-  erlang:send_after(10, self(), timeout_tick),
-  {noreply, {Id, Position + 1 * Direction, Direction}};
+  NewTau = Tau + 0.01,
+  NewX = R * math:cos(2 * math:pi() * (NewTau - T0) / T),
+  NewZ = R * math:sin(2 * math:pi() * (NewTau - T0) / T),
+%%  io:fwrite("Position: ~p~n", [{NewX, Y, NewZ}]),
+  {noreply, {{Id, {NewX, Y, NewZ, R, T0, T}}, NewTau}};
 handle_info(_Info, State) ->
+  io:fwrite("handle_info: ~p~n", [State]),
   {noreply, State}.
 
 terminate(_Reason, _State) ->

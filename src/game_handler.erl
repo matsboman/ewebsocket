@@ -27,18 +27,19 @@ start_link() ->
 
 init([]) ->
   process_flag(trap_exit, true),
-  {ok, Pid1} = game_object:start_link({"one", 0, 1}),
-%%  {ok, Pid2} = game_object:start_link({"two", 1, 1}),
-%%  {ok, Pid3} = game_object:start_link({"three", 2, 1}),
-  {ok, [Pid1]}.
+  {ok, Pid1} = planet_object:start_link({"sun", {0.0, 0.0, 0.0, 0, 0, 1}}),
+  {ok, Pid2} = planet_object:start_link({"earth", {1.0, 0.0, 0.0, 10, 0, 5}}),
+  {ok, Pid3} = planet_object:start_link({"venus", {1.0, 0.0, 0.0, 40, math:pi(), 10}}),
+  {ok, [Pid1, Pid2, Pid3]}.
 
 handle_call(_Request, _From, PidList) ->
   {ok, Positions} = getObjectPositions(PidList, []),
   {reply, Positions, PidList}.
 
-handle_cast(_Info, State) ->
-  io:fwrite("handle_cast game_handler...~n", []),
-  {noreply, State}.
+handle_cast(Info, PidList) ->
+  io:fwrite("handle_cast game_handler...~p~n", [Info]),
+  {ok, Pid} = ship:start_link(Info),
+  {noreply, [Pid | PidList]}.
 
 handle_info(_Info, State) ->
   {noreply, State}.
@@ -57,4 +58,5 @@ getObjectPositions([], Positions) ->
   {ok, Positions};
 getObjectPositions([Pid | T], Positions) ->
   Pos = gen_server:call(Pid, []),
+%%  io:fwrite("getObjectPositions...~p~n", [Pos]),
   getObjectPositions(T, [Pos | Positions]).

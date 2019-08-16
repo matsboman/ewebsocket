@@ -15,8 +15,9 @@ websocket_init(_State) ->
   {ok, 0}.
 
 websocket_handle({text, Msg}, State) ->
-  io:fwrite("websocket_handle ~p~n", [State]),
-  {reply, {text, << "That is what she said!", Msg/binary >>}, State};
+  MsgMap = jsone:decode(Msg),
+  io:fwrite("websocket_handle ~p~n", [{State, MsgMap}]),
+  handle_message(MsgMap, State);
 websocket_handle(_Data, State) ->
   {ok, State}.
 
@@ -34,8 +35,19 @@ websocket_info(_Info, State) ->
 % Internal
 %======================================================================================================
 
+handle_message(#{<<"message">> := <<"keepalive">>}, State) ->
+  {reply, {text, jsone:encode(#{<<"message">> => <<"ping">>})}, State};
+handle_message(#{<<"message">> := <<"newship">>} = MsgMap, State) ->
+  gen_server:cast(game_handler, MsgMap),
+  {reply, {text, jsone:encode(#{<<"message">> => <<"new ship created">>, <<"values">> => MsgMap})}, State}.
+
 formatJSON([], JSONResult) ->
-  {ok, jsone:encode(JSONResult)};
-formatJSON([{Id, Pos, _} | T], JSONResult) ->
-  JSONObject = #{<<"object">> => list_to_binary(Id), <<"position">> => list_to_binary(integer_to_list(Pos))},
+  {ok, jsone:encode(#{<<"message">> => <<"objects">>, <<"values">> => JSONResult})};
+
+formatJSON([{{Id, {X, Y, Z, _, _, _}}, _} | T], JSONResult) ->
+  JSONObject = #{<<"object">> => list_to_binary(Id),
+    <<"position">> =>
+    #{<<"x">> => float_to_binary(X * 1.0),
+      <<"y">> => float_to_binary(Y * 1.0),
+      <<"z">> => float_to_binary(Z * 1.0)}},
   formatJSON(T, [JSONObject | JSONResult]).
