@@ -33,9 +33,18 @@ init([]) ->
   {ok, [Pid1, Pid2, Pid3]}.
 
 handle_call(_Request, _From, PidList) ->
-  {ok, Positions} = getObjectPositions(PidList, []),
-  {reply, Positions, PidList}.
+  {ok, ObjectStatus} = getObjectStatus(PidList, []),
+%%  io:fwrite("ObjectStatus: ~p~n", [ObjectStatus]),
+  {reply, ObjectStatus, PidList}.
 
+handle_cast(yaw_right, PidList) ->
+  io:fwrite("handle_cast game_handler...~p~n", [yaw_right]),
+  lists:foreach(fun(Pid) -> gen_server:cast(Pid, yaw_right) end, PidList),
+  {noreply, PidList};
+handle_cast(yaw_left, PidList) ->
+  io:fwrite("handle_cast game_handler...~p~n", [yaw_left]),
+  lists:foreach(fun(Pid) -> gen_server:cast(Pid, yaw_left) end, PidList),
+  {noreply, PidList};
 handle_cast(Info, PidList) ->
   io:fwrite("handle_cast game_handler...~p~n", [Info]),
   {ok, Pid} = ship:start_link(Info),
@@ -54,9 +63,8 @@ code_change(_OldVsn, State, _Extra) ->
 % Internal
 %======================================================================================================
 
-getObjectPositions([], Positions) ->
+getObjectStatus([], Positions) ->
   {ok, Positions};
-getObjectPositions([Pid | T], Positions) ->
+getObjectStatus([Pid | T], Positions) ->
   Pos = gen_server:call(Pid, []),
-%%  io:fwrite("getObjectPositions...~p~n", [Pos]),
-  getObjectPositions(T, [Pos | Positions]).
+  getObjectStatus(T, [Pos | Positions]).

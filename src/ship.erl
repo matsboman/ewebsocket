@@ -36,28 +36,52 @@ start_link(Seed) ->
 
 init(Seed) ->
   io:fwrite("init ship~p~n", [Seed]),
-  erlang:send_after(10, self(), timeout_tick),
+  erlang:send_after(20, self(), timeout_tick),
   {ok, Seed}.
 
-handle_call(_Request, _From, #{<<"directionI">> := _, <<"directionJ">> := _,
-  <<"directionK">> := _, <<"message">> := _,
+handle_call(_Request, _From, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
+  <<"directionK">> := DirK, <<"message">> := _,
   <<"positionX">> := PosX, <<"positionY">> := PosY,
-  <<"positionZ">> := PosZ, <<"speed">> := _Speed, <<"name">> := Name} = State) ->
-%%  io:fwrite("handle_call ~p~n", [{{Name, {PosX, PosY, PosZ, 0, 0, 0}}, 0}]),
-  {reply, {{binary_to_list(Name), {PosX, PosY, PosZ, 0, 0, 0}}, 0}, State}.
+  <<"positionZ">> := PosZ, <<"speed">> := Speed, <<"name">> := Name} = State) ->
+  JSONObject = State#{<<"type">> => <<"ship">>},
+  {reply, JSONObject, State}.
 
+handle_cast(yaw_right, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
+  <<"directionK">> := DirK, <<"message">> := _,
+  <<"positionX">> := _PosX, <<"positionY">> := _PosY,
+  <<"positionZ">> := _PosZ, <<"speed">> := _Speed, <<"name">> := _Name} = Map) ->
+  io:fwrite("handle_cast ~p before: ~p~n", [yaw_right, {DirI, DirJ, DirK}]),
+  [NewDirI, NewDirJ, NewDirK] = yaw_right({DirI, DirJ, DirK}),
+  io:fwrite("handle_cast ~p after: ~p~n", [yaw_right, {NewDirI, NewDirJ, NewDirK}]),
+  {noreply, Map#{<<"directionI">> := NewDirI, <<"directionJ">> := NewDirJ,
+    <<"directionK">> := NewDirK}};
+handle_cast(yaw_left, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
+  <<"directionK">> := DirK, <<"message">> := _,
+  <<"positionX">> := _PosX, <<"positionY">> := _PosY,
+  <<"positionZ">> := _PosZ, <<"speed">> := _Speed, <<"name">> := _Name} = Map) ->
+  io:fwrite("handle_cast ~p before: ~p~n", [yaw_left, {DirI, DirJ, DirK}]),
+  [NewDirI, NewDirJ, NewDirK] = yaw_left({DirI, DirJ, DirK}),
+  io:fwrite("handle_cast ~p after: ~p~n", [yaw_left, {NewDirI, NewDirJ, NewDirK}]),
+  {noreply, Map#{<<"directionI">> := NewDirI, <<"directionJ">> := NewDirJ,
+    <<"directionK">> := NewDirK}};
 handle_cast(_Info, State) ->
-  io:fwrite("handle_cast ~p~n", [?MODULE]),
   {noreply, State}.
 
 handle_info(timeout_tick, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
   <<"directionK">> := DirK, <<"message">> := _,
   <<"positionX">> := PosX, <<"positionY">> := PosY,
   <<"positionZ">> := PosZ, <<"speed">> := Speed, <<"name">> := Name} = Map) ->
-  erlang:send_after(10, self(), timeout_tick),
+  erlang:send_after(20, self(), timeout_tick),
   {NewPosX, NewPosY, NewPosZ} = forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed),
-%%  io:fwrite("handle_info ship ~p~n", [{NewPosX, NewPosY, NewPosZ}]),
-  {noreply, Map#{<<"positionX">> := NewPosX, <<"positionY">> := NewPosY, <<"positionZ">> := NewPosZ}};
+  {noreply, Map#{<<"name">> => Name,
+    <<"positionX">> => NewPosX,
+    <<"positionY">> => NewPosY,
+    <<"positionZ">> => NewPosZ,
+    <<"directionI">> => DirI,
+    <<"directionJ">> => DirJ,
+    <<"directionK">> => DirK,
+    <<"speed">> => Speed
+    }};
 handle_info(_Info, State) ->
   io:fwrite("handle_info: ~p~n", [State]),
   {noreply, State}.
@@ -73,4 +97,15 @@ code_change(_OldVsn, State, _Extra) ->
 %======================================================================================================
 
 forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed) ->
-  point:point_plus_vector({PosX, PosY, PosZ}, vector:multiply({DirI, DirJ, DirK}, Speed)).
+  vector_math:point_plus_vector({PosX, PosY, PosZ},
+    vector_math:multiply_vector_by_scalar({DirI, DirJ, DirK}, Speed)).
+
+yaw_right({DirI, DirJ, DirK}) ->
+%%  rotate the forward and right vectors around the up vector axis for yaw
+  vector_math:rotate_around_vector([DirI, DirJ, DirK], [0, 1, 0], -math:pi() / 10).
+%% rightVec = forwardVec.cross(Vector(0,1,0))
+
+yaw_left({DirI, DirJ, DirK}) ->
+%%  rotate the forward and right vectors around the up vector axis for yaw
+  vector_math:rotate_around_vector([DirI, DirJ, DirK], [0, 1, 0], math:pi() / 10).
+%% rightVec = forwardVec.cross(Vector(0,1,0))

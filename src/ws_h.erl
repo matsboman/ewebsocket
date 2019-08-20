@@ -11,7 +11,7 @@ init(Req, Opts) ->
 
 websocket_init(_State) ->
   io:fwrite("websocket_init~p~n", [self()]),
-  erlang:start_timer(20, self(), <<"Hello!">>),
+  erlang:start_timer(30, self(), <<"Hello!">>),
   {ok, 0}.
 
 websocket_handle({text, Msg}, State) ->
@@ -22,32 +22,25 @@ websocket_handle(_Data, State) ->
   {ok, State}.
 
 websocket_info({timeout, _Ref, _Msg}, State) ->
-  erlang:start_timer(20, self(), <<"How' you doin'?">>),
+  erlang:start_timer(30, self(), <<"How' you doin'?">>),
   Result = gen_server:call(game_handler, []),
-%%  io:fwrite("game_handler result: ~p~n", [Result]),
-  {ok, JSONResult} = formatJSON(Result, []),
-%%  io:fwrite("JSONResult ~p~n", [JSONResult]),
-  {reply, {text, JSONResult}, State + 1};
+  {reply, {text, jsone:encode(#{<<"message">> => <<"status">>, <<"values">> => Result})}, State + 1};
 websocket_info(_Info, State) ->
   {ok, State}.
 
 %======================================================================================================
 % Internal
 %======================================================================================================
-
+handle_message(#{<<"author">> := _, <<"message">> := <<"yaw_right">>} = Msg, State) ->
+  io:fwrite("handle_message ~p~n", [Msg]),
+  gen_server:cast(game_handler, yaw_right),
+  {reply, {text, jsone:encode(#{<<"message">> => <<"yaw_right done">>})}, State};
+handle_message(#{<<"author">> := _, <<"message">> := <<"yaw_left">>} = Msg, State) ->
+  gen_server:cast(game_handler, yaw_left),
+  {reply, {text, jsone:encode(#{<<"message">> => <<"yaw_left done">>})}, State};
 handle_message(#{<<"message">> := <<"keepalive">>}, State) ->
   {reply, {text, jsone:encode(#{<<"message">> => <<"ping">>})}, State};
-handle_message(#{<<"message">> := <<"newship">>} = MsgMap, State) ->
-  gen_server:cast(game_handler, MsgMap),
-  {reply, {text, jsone:encode(#{<<"message">> => <<"new ship created">>, <<"values">> => MsgMap})}, State}.
+handle_message(#{<<"message">> := <<"newship">>} = Msg, State) ->
+  gen_server:cast(game_handler, Msg),
+  {reply, {text, jsone:encode(#{<<"message">> => <<"new ship created">>, <<"values">> => Msg})}, State}.
 
-formatJSON([], JSONResult) ->
-  {ok, jsone:encode(#{<<"message">> => <<"objects">>, <<"values">> => JSONResult})};
-
-formatJSON([{{Id, {X, Y, Z, _, _, _}}, _} | T], JSONResult) ->
-  JSONObject = #{<<"object">> => list_to_binary(Id),
-    <<"position">> =>
-    #{<<"x">> => float_to_binary(X * 1.0),
-      <<"y">> => float_to_binary(Y * 1.0),
-      <<"z">> => float_to_binary(Z * 1.0)}},
-  formatJSON(T, [JSONObject | JSONResult]).

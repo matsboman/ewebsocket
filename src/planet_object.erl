@@ -36,23 +36,26 @@ start_link(Seed) ->
 
 init(Seed) ->
   io:fwrite("init planet_object~p~n", [Seed]),
-  erlang:send_after(10, self(), timeout_tick),
+  erlang:send_after(20, self(), timeout_tick),
   {ok, {Seed, 0}}.
 
-handle_call(_Request, _From, State) ->
-%%  io:fwrite("handle_call ~p~n", [State]),
-  {reply, State, State}.
+handle_call(_Request, _From, {{Id, {X, Y, Z, _R, _T0, _T}}, _Tau} = State) ->
+  JSONObject = #{<<"type">> => <<"planet">>, <<"name">> => list_to_binary(Id),
+    <<"position">> =>
+    #{<<"x">> => X,
+      <<"y">> => Y,
+      <<"z">> => Z}},
+  {reply, JSONObject, State}.
 
-handle_cast(_Info, State) ->
-  io:fwrite("handle_cast ~p~n", [?MODULE]),
+handle_cast(Info, State) ->
+%%  io:fwrite("handle_cast ~p~n", [Info]),
   {noreply, State}.
 
-handle_info(timeout_tick, {{Id, {X, Y, Z, R, T0, T}}, Tau}) ->
-  erlang:send_after(10, self(), timeout_tick),
+handle_info(timeout_tick, {{Id, {_X, Y, _Z, R, T0, T}}, Tau}) ->
+  erlang:send_after(20, self(), timeout_tick),
   NewTau = Tau + 0.01,
   NewX = R * math:cos(2 * math:pi() * (NewTau - T0) / T),
   NewZ = R * math:sin(2 * math:pi() * (NewTau - T0) / T),
-%%  io:fwrite("Position: ~p~n", [{NewX, Y, NewZ}]),
   {noreply, {{Id, {NewX, Y, NewZ, R, T0, T}}, NewTau}};
 handle_info(_Info, State) ->
   io:fwrite("handle_info: ~p~n", [State]),
