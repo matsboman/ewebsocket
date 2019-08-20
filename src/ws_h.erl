@@ -32,7 +32,6 @@ websocket_info(_Info, State) ->
 % Internal
 %======================================================================================================
 handle_message(#{<<"author">> := _, <<"message">> := <<"yaw_right">>} = Msg, State) ->
-  io:fwrite("handle_message ~p~n", [Msg]),
   gen_server:cast(game_handler, yaw_right),
   {reply, {text, jsone:encode(#{<<"message">> => <<"yaw_right done">>})}, State};
 handle_message(#{<<"author">> := _, <<"message">> := <<"yaw_left">>} = Msg, State) ->

@@ -50,20 +50,14 @@ handle_cast(yaw_right, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
   <<"directionK">> := DirK, <<"message">> := _,
   <<"positionX">> := _PosX, <<"positionY">> := _PosY,
   <<"positionZ">> := _PosZ, <<"speed">> := _Speed, <<"name">> := _Name} = Map) ->
-  io:fwrite("handle_cast ~p before: ~p~n", [yaw_right, {DirI, DirJ, DirK}]),
   [NewDirI, NewDirJ, NewDirK] = yaw_right({DirI, DirJ, DirK}),
-  io:fwrite("handle_cast ~p after: ~p~n", [yaw_right, {NewDirI, NewDirJ, NewDirK}]),
-  {noreply, Map#{<<"directionI">> := NewDirI, <<"directionJ">> := NewDirJ,
-    <<"directionK">> := NewDirK}};
+  {noreply, Map#{<<"directionI">> := NewDirI, <<"directionJ">> := NewDirJ, <<"directionK">> := NewDirK}};
 handle_cast(yaw_left, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
   <<"directionK">> := DirK, <<"message">> := _,
   <<"positionX">> := _PosX, <<"positionY">> := _PosY,
   <<"positionZ">> := _PosZ, <<"speed">> := _Speed, <<"name">> := _Name} = Map) ->
-  io:fwrite("handle_cast ~p before: ~p~n", [yaw_left, {DirI, DirJ, DirK}]),
   [NewDirI, NewDirJ, NewDirK] = yaw_left({DirI, DirJ, DirK}),
-  io:fwrite("handle_cast ~p after: ~p~n", [yaw_left, {NewDirI, NewDirJ, NewDirK}]),
-  {noreply, Map#{<<"directionI">> := NewDirI, <<"directionJ">> := NewDirJ,
-    <<"directionK">> := NewDirK}};
+  {noreply, Map#{<<"directionI">> := NewDirI, <<"directionJ">> := NewDirJ, <<"directionK">> := NewDirK}};
 handle_cast(_Info, State) ->
   {noreply, State}.
 
@@ -73,15 +67,7 @@ handle_info(timeout_tick, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
   <<"positionZ">> := PosZ, <<"speed">> := Speed, <<"name">> := Name} = Map) ->
   erlang:send_after(20, self(), timeout_tick),
   {NewPosX, NewPosY, NewPosZ} = forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed),
-  {noreply, Map#{<<"name">> => Name,
-    <<"positionX">> => NewPosX,
-    <<"positionY">> => NewPosY,
-    <<"positionZ">> => NewPosZ,
-    <<"directionI">> => DirI,
-    <<"directionJ">> => DirJ,
-    <<"directionK">> => DirK,
-    <<"speed">> => Speed
-    }};
+  {noreply, Map#{<<"positionX">> := NewPosX, <<"positionY">> := NewPosY, <<"positionZ">> := NewPosZ}};
 handle_info(_Info, State) ->
   io:fwrite("handle_info: ~p~n", [State]),
   {noreply, State}.
@@ -102,10 +88,10 @@ forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed) ->
 
 yaw_right({DirI, DirJ, DirK}) ->
 %%  rotate the forward and right vectors around the up vector axis for yaw
-  vector_math:rotate_around_vector([DirI, DirJ, DirK], [0, 1, 0], -math:pi() / 10).
-%% rightVec = forwardVec.cross(Vector(0,1,0))
+  vector_math:rotate_around_vector([DirI, DirJ, DirK], [0, 1, 0], -math:pi() / 100).
+%% rightVec = forwardVec.cross(Vector(0,1,0)) - not needed right now
 
 yaw_left({DirI, DirJ, DirK}) ->
 %%  rotate the forward and right vectors around the up vector axis for yaw
-  vector_math:rotate_around_vector([DirI, DirJ, DirK], [0, 1, 0], math:pi() / 10).
-%% rightVec = forwardVec.cross(Vector(0,1,0))
+  vector_math:rotate_around_vector([DirI, DirJ, DirK], [0, 1, 0], math:pi() / 100).
+%% rightVec = forwardVec.cross(Vector(0,1,0)) - not needed right now

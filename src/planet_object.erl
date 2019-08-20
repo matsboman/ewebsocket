@@ -41,10 +41,7 @@ init(Seed) ->
 
 handle_call(_Request, _From, {{Id, {X, Y, Z, _R, _T0, _T}}, _Tau} = State) ->
   JSONObject = #{<<"type">> => <<"planet">>, <<"name">> => list_to_binary(Id),
-    <<"position">> =>
-    #{<<"x">> => X,
-      <<"y">> => Y,
-      <<"z">> => Z}},
+    <<"position">> => #{<<"x">> => X, <<"y">> => Y, <<"z">> => Z}},
   {reply, JSONObject, State}.
 
 handle_cast(Info, State) ->

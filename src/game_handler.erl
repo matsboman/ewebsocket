@@ -30,7 +30,7 @@ init([]) ->
   {ok, Pid1} = planet_object:start_link({"sun", {0.0, 0.0, 0.0, 0, 0, 1}}),
   {ok, Pid2} = planet_object:start_link({"earth", {1.0, 0.0, 0.0, 10, 0, 5}}),
   {ok, Pid3} = planet_object:start_link({"venus", {1.0, 0.0, 0.0, 40, math:pi(), 10}}),
-  {ok, [Pid1, Pid2, Pid3]}.
+  {ok, [{planet, Pid1}, {planet, Pid2}, {planet, Pid3}]}.
 
 handle_call(_Request, _From, PidList) ->
   {ok, ObjectStatus} = getObjectStatus(PidList, []),
@@ -38,17 +38,12 @@ handle_call(_Request, _From, PidList) ->
   {reply, ObjectStatus, PidList}.
 
 handle_cast(yaw_right, PidList) ->
-  io:fwrite("handle_cast game_handler...~p~n", [yaw_right]),
-  lists:foreach(fun(Pid) -> gen_server:cast(Pid, yaw_right) end, PidList),
-  {noreply, PidList};
+  handle_ship_action(yaw_right, PidList);
 handle_cast(yaw_left, PidList) ->
-  io:fwrite("handle_cast game_handler...~p~n", [yaw_left]),
-  lists:foreach(fun(Pid) -> gen_server:cast(Pid, yaw_left) end, PidList),
-  {noreply, PidList};
+  handle_ship_action(yaw_left, PidList);
 handle_cast(Info, PidList) ->
-  io:fwrite("handle_cast game_handler...~p~n", [Info]),
   {ok, Pid} = ship:start_link(Info),
-  {noreply, [Pid | PidList]}.
+  {noreply, [{ship, Pid} | PidList]}.
 
 handle_info(_Info, State) ->
   {noreply, State}.
@@ -63,8 +58,16 @@ code_change(_OldVsn, State, _Extra) ->
 % Internal
 %======================================================================================================
 
+handle_ship_action(Action, PidList) ->
+  lists:foreach(fun({Object, Pid}) -> case Object of
+                                        ship -> gen_server:cast(Pid, Action);
+                                        _ -> ok
+                                      end
+                end, PidList),
+  {noreply, PidList}.
+
 getObjectStatus([], Positions) ->
   {ok, Positions};
-getObjectStatus([Pid | T], Positions) ->
+getObjectStatus([{_, Pid} | T], Positions) ->
   Pos = gen_server:call(Pid, []),
   getObjectStatus(T, [Pos | Positions]).
