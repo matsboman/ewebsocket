@@ -24,6 +24,7 @@ websocket_handle(_Data, State) ->
 websocket_info({timeout, _Ref, _Msg}, State) ->
   erlang:start_timer(30, self(), <<"How' you doin'?">>),
   Result = gen_server:call(game_handler, []),
+  io:fwrite("Result ~p~n", [Result]),
   {reply, {text, jsone:encode(#{<<"message">> => <<"status">>, <<"values">> => Result})}, State + 1};
 websocket_info(_Info, State) ->
   {ok, State}.
@@ -37,9 +38,12 @@ handle_message(#{<<"author">> := _, <<"message">> := <<"yaw_right">>} = Msg, Sta
 handle_message(#{<<"author">> := _, <<"message">> := <<"yaw_left">>} = Msg, State) ->
   gen_server:cast(game_handler, yaw_left),
   {reply, {text, jsone:encode(#{<<"message">> => <<"yaw_left done">>})}, State};
+handle_message(#{<<"author">> := _, <<"message">> := <<"fire">>} = Msg, State) ->
+  gen_server:cast(game_handler, fire),
+  {reply, {text, jsone:encode(#{<<"message">> => <<"fired!">>})}, State};
 handle_message(#{<<"message">> := <<"keepalive">>}, State) ->
   {reply, {text, jsone:encode(#{<<"message">> => <<"ping">>})}, State};
 handle_message(#{<<"message">> := <<"newship">>} = Msg, State) ->
-  gen_server:cast(game_handler, Msg),
+  gen_server:cast(game_handler, Msg#{<<"shots_fired">> => 0}),
   {reply, {text, jsone:encode(#{<<"message">> => <<"new ship created">>, <<"values">> => Msg})}, State}.
 

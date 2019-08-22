@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 07. Aug 2019 2:01 PM
 %%%-------------------------------------------------------------------
--module(ship).
+-module(shot).
 -author("mb189v").
 -behaviour(gen_server).
 
@@ -35,41 +35,21 @@ start_link(Seed) ->
 %======================================================================================================
 
 init(Seed) ->
-  io:fwrite("init ship~p~n", [Seed]),
+  io:fwrite("init shot~p~n", [Seed]),
   erlang:send_after(20, self(), timeout_tick),
   {ok, Seed}.
 
-handle_call(fire, _From, Map) ->
-  io:fwrite("ship firing...~n", []),
-  ShotsFired = maps:get(<<"shots_fired">>, Map) + 1,
-  ShotMap = Map#{<<"speed">> := maps:get(<<"speed">>, Map) * 10,
-                  <<"name">> := integer_to_binary(ShotsFired)},
-  {ok, Pid} = shot:start_link(ShotMap),
-  {reply, Pid, Map#{<<"shots_fired">> := ShotsFired}};
 handle_call(_Request, _From, State) ->
-  JSONObject = State#{<<"type">> => <<"ship">>},
-  io:fwrite("ship JSONObject ~p~n", [JSONObject]),
+  JSONObject = State#{<<"type">> => <<"shot">>},
   {reply, JSONObject, State}.
 
-handle_cast(yaw_right, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
-  <<"directionK">> := DirK, <<"message">> := _,
-  <<"positionX">> := _PosX, <<"positionY">> := _PosY,
-  <<"positionZ">> := _PosZ, <<"speed">> := _Speed, <<"name">> := _Name, <<"shots_fired">> := _} = Map) ->
-  [NewDirI, NewDirJ, NewDirK] = yaw_right({DirI, DirJ, DirK}),
-  {noreply, Map#{<<"directionI">> := NewDirI, <<"directionJ">> := NewDirJ, <<"directionK">> := NewDirK}};
-handle_cast(yaw_left, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
-  <<"directionK">> := DirK, <<"message">> := _,
-  <<"positionX">> := _PosX, <<"positionY">> := _PosY,
-  <<"positionZ">> := _PosZ, <<"speed">> := _Speed, <<"name">> := _Name, <<"shots_fired">> := _} = Map) ->
-  [NewDirI, NewDirJ, NewDirK] = yaw_left({DirI, DirJ, DirK}),
-  {noreply, Map#{<<"directionI">> := NewDirI, <<"directionJ">> := NewDirJ, <<"directionK">> := NewDirK}};
 handle_cast(_Info, State) ->
   {noreply, State}.
 
 handle_info(timeout_tick, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
   <<"directionK">> := DirK, <<"message">> := _,
   <<"positionX">> := PosX, <<"positionY">> := PosY,
-  <<"positionZ">> := PosZ, <<"speed">> := Speed, <<"name">> := _Name, <<"shots_fired">> := _} = Map) ->
+  <<"positionZ">> := PosZ, <<"speed">> := Speed, <<"name">> := _Name} = Map) ->
   erlang:send_after(20, self(), timeout_tick),
   {NewPosX, NewPosY, NewPosZ} = forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed),
   {noreply, Map#{<<"positionX">> := NewPosX, <<"positionY">> := NewPosY, <<"positionZ">> := NewPosZ}};
@@ -91,12 +71,3 @@ forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed) ->
   vector_math:point_plus_vector({PosX, PosY, PosZ},
     vector_math:multiply_vector_by_scalar({DirI, DirJ, DirK}, Speed)).
 
-yaw_right({DirI, DirJ, DirK}) ->
-%%  rotate the forward and right vectors around the up vector axis for yaw
-  vector_math:rotate_around_vector([DirI, DirJ, DirK], [0, 1, 0], -math:pi() / 100).
-%% rightVec = forwardVec.cross(Vector(0,1,0)) - not needed right now
-
-yaw_left({DirI, DirJ, DirK}) ->
-%%  rotate the forward and right vectors around the up vector axis for yaw
-  vector_math:rotate_around_vector([DirI, DirJ, DirK], [0, 1, 0], math:pi() / 100).
-%% rightVec = forwardVec.cross(Vector(0,1,0)) - not needed right now

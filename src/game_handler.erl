@@ -41,9 +41,11 @@ handle_cast(yaw_right, PidList) ->
   handle_ship_action(yaw_right, PidList);
 handle_cast(yaw_left, PidList) ->
   handle_ship_action(yaw_left, PidList);
+handle_cast(fire, PidList) ->
+  handle_ship_action(fire, PidList);
 handle_cast(Info, PidList) ->
   {ok, Pid} = ship:start_link(Info),
-  {noreply, [{ship, Pid} | PidList]}.
+  {noreply, [{ship, {Pid, {shot_pids, []}}} | PidList]}.
 
 handle_info(_Info, State) ->
   {noreply, State}.
@@ -58,16 +60,44 @@ code_change(_OldVsn, State, _Extra) ->
 % Internal
 %======================================================================================================
 
+handle_ship_action(fire, PidList) ->
+  NewPidList = call_to_ship(fire, PidList),
+  io:fwrite("NewPidList: ~p~n", [NewPidList]),
+  {noreply, NewPidList};
 handle_ship_action(Action, PidList) ->
-  lists:foreach(fun({Object, Pid}) -> case Object of
-                                        ship -> gen_server:cast(Pid, Action);
-                                        _ -> ok
-                                      end
-                end, PidList),
+  cast_to_ship(Action, PidList),
   {noreply, PidList}.
 
 getObjectStatus([], Positions) ->
   {ok, Positions};
+getObjectStatus([{_, {Pid, {shot_pids, ShotPidList}}} | T], Positions) ->
+  {ok, ShotsPositions} = getObjectStatus(ShotPidList, []),
+  io:fwrite("ShotsPositions: ~p~n", [ShotsPositions]),
+  io:fwrite("ship pid: ~p~n", [Pid]),
+  Pos = gen_server:call(Pid, []),
+  getObjectStatus(T, Positions ++ [Pos | ShotsPositions]);
 getObjectStatus([{_, Pid} | T], Positions) ->
   Pos = gen_server:call(Pid, []),
+  getObjectStatus(T, [Pos | Positions]);
+getObjectStatus([Pid | T], Positions) ->
+  Pos = gen_server:call(Pid, []),
   getObjectStatus(T, [Pos | Positions]).
+
+cast_to_ship(Action, PidList) ->
+  lists:foreach(fun({Object,  Pid}) -> case Object of
+                                        ship ->
+                                          {ShipPid, {shot_pids, _ShotPidList}} = Pid,
+                                          gen_server:cast(ShipPid, Action);
+                                        _ -> ok
+                                      end
+                end, PidList).
+
+call_to_ship(Action, PidList) ->
+  lists:map(fun({Object, Pid}) -> case Object of
+                                        ship ->
+                                          {ShipPid, {shot_pids, ShotPidList}} = Pid,
+                                          ShotPid = gen_server:call(ShipPid, Action),
+                                          {Object, {ShipPid, {shot_pids, [ShotPid | ShotPidList]}}};
+                                        _ -> {Object, Pid}
+                                      end
+                end, PidList).
