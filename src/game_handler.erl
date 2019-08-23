@@ -33,9 +33,9 @@ init([]) ->
   {ok, [{planet, Pid1}, {planet, Pid2}, {planet, Pid3}]}.
 
 handle_call(_Request, _From, PidList) ->
-  {ok, ObjectStatus} = getObjectStatus(PidList, []),
+  {ok, ObjectStatus, NewPidList} = getObjectStatus(PidList, [], []),
 %%  io:fwrite("ObjectStatus: ~p~n", [ObjectStatus]),
-  {reply, ObjectStatus, PidList}.
+  {reply, ObjectStatus, NewPidList}.
 
 handle_cast(yaw_right, PidList) ->
   handle_ship_action(yaw_right, PidList);
@@ -62,26 +62,33 @@ code_change(_OldVsn, State, _Extra) ->
 
 handle_ship_action(fire, PidList) ->
   NewPidList = call_to_ship(fire, PidList),
-  io:fwrite("NewPidList: ~p~n", [NewPidList]),
+%%  io:fwrite("NewPidList: ~p~n", [NewPidList]),
   {noreply, NewPidList};
 handle_ship_action(Action, PidList) ->
   cast_to_ship(Action, PidList),
   {noreply, PidList}.
 
-getObjectStatus([], Positions) ->
-  {ok, Positions};
-getObjectStatus([{_, {Pid, {shot_pids, ShotPidList}}} | T], Positions) ->
-  {ok, ShotsPositions} = getObjectStatus(ShotPidList, []),
-  io:fwrite("ShotsPositions: ~p~n", [ShotsPositions]),
-  io:fwrite("ship pid: ~p~n", [Pid]),
-  Pos = gen_server:call(Pid, []),
-  getObjectStatus(T, Positions ++ [Pos | ShotsPositions]);
-getObjectStatus([{_, Pid} | T], Positions) ->
-  Pos = gen_server:call(Pid, []),
-  getObjectStatus(T, [Pos | Positions]);
-getObjectStatus([Pid | T], Positions) ->
-  Pos = gen_server:call(Pid, []),
-  getObjectStatus(T, [Pos | Positions]).
+getObjectStatus([], Statuses, NewPidList) ->
+  {ok, Statuses, NewPidList};
+getObjectStatus([{Id, {Pid, {shot_pids, ShotPidList}}} | T], Statuses, NewPidList) ->
+  {ok, ShotsPositions, NewShotPidList} = getShotsStatus(ShotPidList, [], []),
+  Status = gen_server:call(Pid, []),
+  getObjectStatus(T, Statuses ++ [Status | ShotsPositions], [{Id, {Pid, {shot_pids, NewShotPidList}}} | NewPidList]);
+getObjectStatus([{Id, Pid} | T], Statuses, NewPidList) ->
+  Status = gen_server:call(Pid, []),
+  getObjectStatus(T, [Status | Statuses], [{Id, Pid} | NewPidList]).
+
+getShotsStatus([], Statuses, NewPidList) ->
+  {ok, Statuses, NewPidList};
+getShotsStatus([Pid | T], Statuses, NewPidList) ->
+  getShotsStatusHandler([Pid | T], gen_server:call(Pid, []), Statuses, NewPidList).
+
+getShotsStatusHandler([Pid | T], #{<<"message">> := <<"died">>} = Status, Statuses, NewPidList) ->
+  gen_server:stop(Pid),
+  getShotsStatus(T, [Status | Statuses], NewPidList);
+getShotsStatusHandler([Pid | T], Status, Statuses, NewPidList) ->
+  getShotsStatus(T, [Status | Statuses], [Pid | NewPidList]).
+
 
 cast_to_ship(Action, PidList) ->
   lists:foreach(fun({Object,  Pid}) -> case Object of

@@ -24,7 +24,7 @@ websocket_handle(_Data, State) ->
 websocket_info({timeout, _Ref, _Msg}, State) ->
   erlang:start_timer(30, self(), <<"How' you doin'?">>),
   Result = gen_server:call(game_handler, []),
-  io:fwrite("Result ~p~n", [Result]),
+%%  io:fwrite("Result ~p~n", [Result]),
   {reply, {text, jsone:encode(#{<<"message">> => <<"status">>, <<"values">> => Result})}, State + 1};
 websocket_info(_Info, State) ->
   {ok, State}.

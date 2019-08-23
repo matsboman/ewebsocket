@@ -42,13 +42,13 @@ init(Seed) ->
 handle_call(fire, _From, Map) ->
   io:fwrite("ship firing...~n", []),
   ShotsFired = maps:get(<<"shots_fired">>, Map) + 1,
-  ShotMap = Map#{<<"speed">> := maps:get(<<"speed">>, Map) * 10,
+  ShotMap = Map#{<<"message">> := <<"new">>, <<"speed">> := maps:get(<<"speed">>, Map) * 10,
                   <<"name">> := integer_to_binary(ShotsFired)},
   {ok, Pid} = shot:start_link(ShotMap),
   {reply, Pid, Map#{<<"shots_fired">> := ShotsFired}};
 handle_call(_Request, _From, State) ->
   JSONObject = State#{<<"type">> => <<"ship">>},
-  io:fwrite("ship JSONObject ~p~n", [JSONObject]),
+%%  io:fwrite("ship JSONObject ~p~n", [JSONObject]),
   {reply, JSONObject, State}.
 
 handle_cast(yaw_right, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
