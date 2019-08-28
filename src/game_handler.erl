@@ -37,12 +37,12 @@ handle_call(_Request, _From, PidList) ->
 %%  io:fwrite("ObjectStatus: ~p~n", [ObjectStatus]),
   {reply, ObjectStatus, NewPidList}.
 
-handle_cast(yaw_right, PidList) ->
-  handle_ship_action(yaw_right, PidList);
-handle_cast(yaw_left, PidList) ->
-  handle_ship_action(yaw_left, PidList);
-handle_cast(fire, PidList) ->
-  handle_ship_action(fire, PidList);
+handle_cast({yaw_right, _Name} = Action, PidList) ->
+  handle_ship_action(Action, PidList);
+handle_cast({yaw_left, _Name} = Action, PidList) ->
+  handle_ship_action(Action, PidList);
+handle_cast({fire, Name}, PidList) ->
+  handle_ship_action({fire, Name}, PidList);
 handle_cast(Info, PidList) ->
   {ok, Pid} = ship:start_link(Info),
   {noreply, [{ship, {Pid, {shot_pids, []}}} | PidList]}.
@@ -60,8 +60,8 @@ code_change(_OldVsn, State, _Extra) ->
 % Internal
 %======================================================================================================
 
-handle_ship_action(fire, PidList) ->
-  NewPidList = call_to_ship(fire, PidList),
+handle_ship_action({fire, Name}, PidList) ->
+  NewPidList = call_to_ship({fire, Name}, PidList),
 %%  io:fwrite("NewPidList: ~p~n", [NewPidList]),
   {noreply, NewPidList};
 handle_ship_action(Action, PidList) ->
@@ -83,7 +83,7 @@ getShotsStatus([], Statuses, NewPidList) ->
 getShotsStatus([Pid | T], Statuses, NewPidList) ->
   getShotsStatusHandler([Pid | T], gen_server:call(Pid, []), Statuses, NewPidList).
 
-getShotsStatusHandler([Pid | T], #{<<"message">> := <<"died">>} = Status, Statuses, NewPidList) ->
+getShotsStatusHandler([Pid | T], #{<<"message">> := <<"terminated">>} = Status, Statuses, NewPidList) ->
   gen_server:stop(Pid),
   getShotsStatus(T, [Status | Statuses], NewPidList);
 getShotsStatusHandler([Pid | T], Status, Statuses, NewPidList) ->
@@ -103,8 +103,14 @@ call_to_ship(Action, PidList) ->
   lists:map(fun({Object, Pid}) -> case Object of
                                         ship ->
                                           {ShipPid, {shot_pids, ShotPidList}} = Pid,
-                                          ShotPid = gen_server:call(ShipPid, Action),
-                                          {Object, {ShipPid, {shot_pids, [ShotPid | ShotPidList]}}};
+                                          case gen_server:call(ShipPid, Action) of
+                                            no_action ->
+                                              io:fwrite("fire no_action...~n", []),
+                                              {Object, {ShipPid, {shot_pids, ShotPidList}}};
+                                            ShotPid ->
+                                              io:fwrite("fired shot...~p~n", [ShotPid]),
+                                              {Object, {ShipPid, {shot_pids, [ShotPid | ShotPidList]}}}
+                                          end;
                                         _ -> {Object, Pid}
                                       end
                 end, PidList).

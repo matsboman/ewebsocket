@@ -32,14 +32,14 @@ websocket_info(_Info, State) ->
 %======================================================================================================
 % Internal
 %======================================================================================================
-handle_message(#{<<"author">> := _, <<"message">> := <<"yaw_right">>} = Msg, State) ->
-  gen_server:cast(game_handler, yaw_right),
+handle_message(#{<<"name">> := Name, <<"message">> := <<"yaw_right">>}, State) ->
+  gen_server:cast(game_handler, {yaw_right, Name}),
   {reply, {text, jsone:encode(#{<<"message">> => <<"yaw_right done">>})}, State};
-handle_message(#{<<"author">> := _, <<"message">> := <<"yaw_left">>} = Msg, State) ->
-  gen_server:cast(game_handler, yaw_left),
+handle_message(#{<<"name">> := Name, <<"message">> := <<"yaw_left">>}, State) ->
+  gen_server:cast(game_handler, {yaw_left, Name}),
   {reply, {text, jsone:encode(#{<<"message">> => <<"yaw_left done">>})}, State};
-handle_message(#{<<"author">> := _, <<"message">> := <<"fire">>} = Msg, State) ->
-  gen_server:cast(game_handler, fire),
+handle_message(#{<<"name">> := Name, <<"message">> := <<"fire">>}, State) ->
+  gen_server:cast(game_handler, {fire, Name}),
   {reply, {text, jsone:encode(#{<<"message">> => <<"fired!">>})}, State};
 handle_message(#{<<"message">> := <<"keepalive">>}, State) ->
   {reply, {text, jsone:encode(#{<<"message">> => <<"ping">>})}, State};

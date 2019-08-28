@@ -38,6 +38,7 @@ init(Seed) ->
   io:fwrite("init shot~p~n", [Seed]),
   erlang:send_after(20, self(), timeout_tick),
   erlang:send_after(10000, self(), die),
+  erlang:send_after(15000, self(), terminate),
   {ok, Seed}.
 
 handle_call(_Request, _From, State) ->
@@ -47,20 +48,23 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Info, State) ->
   {noreply, State}.
 
-handle_info(timeout_tick, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
-  <<"directionK">> := DirK, <<"message">> := <<"new">>,
-  <<"positionX">> := PosX, <<"positionY">> := PosY,
-  <<"positionZ">> := PosZ, <<"speed">> := Speed, <<"name">> := _Name} = Map) ->
+handle_info(timeout_tick, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ, <<"directionK">> := DirK,
+  <<"positionX">> := PosX, <<"positionY">> := PosY, <<"positionZ">> := PosZ, <<"speed">> := Speed} = Map) ->
   erlang:send_after(20, self(), timeout_tick),
   {NewPosX, NewPosY, NewPosZ} = forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed),
   {noreply, Map#{<<"positionX">> := NewPosX, <<"positionY">> := NewPosY, <<"positionZ">> := NewPosZ}};
 handle_info(die, State) ->
+  io:fwrite("handle_info die: ~p~n", [State]),
   {noreply, State#{<<"message">> := <<"died">>}};
+handle_info(terminate, State) ->
+  io:fwrite("handle_info die: ~p~n", [State]),
+  {noreply, State#{<<"message">> := <<"terminated">>}};
 handle_info(_Info, State) ->
-io:fwrite("handle_info: ~p~n", [State]),
+  io:fwrite("handle_info: ~p~n", [State]),
   {noreply, State}.
 
-terminate(_Reason, _State) ->
+terminate(_Reason, State) ->
+  io:fwrite("terminate: ~p~n", [State]),
   ok.
 
 code_change(_OldVsn, State, _Extra) ->
