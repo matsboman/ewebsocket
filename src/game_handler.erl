@@ -34,6 +34,7 @@ init([]) ->
 
 handle_call(_Request, _From, PidList) ->
   {ok, ObjectStatus, NewPidList} = getObjectStatus(PidList, [], []),
+  check_collisions(ObjectStatus),
 %%  io:fwrite("ObjectStatus: ~p~n", [ObjectStatus]),
   {reply, ObjectStatus, NewPidList}.
 
@@ -59,6 +60,27 @@ code_change(_OldVsn, State, _Extra) ->
 %======================================================================================================
 % Internal
 %======================================================================================================
+
+check_collisions(StatusList) ->
+  io:fwrite("check_collisions #############################: ~p~n", [StatusList]),
+  check_collisions(StatusList, StatusList).
+check_collisions([], StatusList) ->
+  ok;
+check_collisions([Status | T], StatusList) ->
+  check_collisions_impl(Status, StatusList),
+  check_collisions(T, StatusList).
+
+check_collisions_impl(Status, []) ->
+  ok;
+check_collisions_impl(Status, [Peer | T]) ->
+  is_collision(Status, Peer),
+  check_collisions_impl(Status, T).
+
+is_collision(#{<<"name">> := Name},  #{<<"name">> := Name}) ->
+  ok;
+is_collision(#{<<"position">> := PosA}, #{<<"position">> := PosB}) ->
+  io:fwrite("is collision: ~p ~p~n", [PosA, PosB]),
+  ok.
 
 handle_ship_action({fire, Name}, PidList) ->
   NewPidList = call_to_ship({fire, Name}, PidList),
