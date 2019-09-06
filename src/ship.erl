@@ -53,13 +53,10 @@ handle_call(_Request, _From, State) ->
 %%  io:fwrite("ship JSONObject ~p~n", [JSONObject]),
   {reply, JSONObject, State}.
 
-handle_cast({yaw_right, Name},
-    #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK},
-      <<"name">> := Name} = Map) ->
+handle_cast({yaw_right, Name}, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK}, <<"name">> := Name} = Map) ->
   [NewDirI, NewDirJ, NewDirK] = yaw_right({DirI, DirJ, DirK}),
   {noreply, Map#{<<"direction">> := #{<<"i">> => NewDirI, <<"j">> => NewDirJ, <<"k">> => NewDirK}}};
-handle_cast({yaw_left, Name}, #{<<"i">> := DirI, <<"j">> := DirJ,
-  <<"k">> := DirK, <<"name">> := Name} = Map) ->
+handle_cast({yaw_left, Name}, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK}, <<"name">> := Name} = Map) ->
   [NewDirI, NewDirJ, NewDirK] = yaw_left({DirI, DirJ, DirK}),
   {noreply, Map#{<<"direction">> := #{<<"i">> => NewDirI, <<"j">> => NewDirJ, <<"k">> => NewDirK}}};
 handle_cast(Info, State) ->
