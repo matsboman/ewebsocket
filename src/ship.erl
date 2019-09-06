@@ -53,25 +53,24 @@ handle_call(_Request, _From, State) ->
 %%  io:fwrite("ship JSONObject ~p~n", [JSONObject]),
   {reply, JSONObject, State}.
 
-handle_cast({yaw_right, Name}, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
-  <<"directionK">> := DirK, <<"name">> := Name} = Map) ->
+handle_cast({yaw_right, Name},
+    #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK},
+      <<"name">> := Name} = Map) ->
   [NewDirI, NewDirJ, NewDirK] = yaw_right({DirI, DirJ, DirK}),
-  {noreply, Map#{<<"directionI">> := NewDirI, <<"directionJ">> := NewDirJ, <<"directionK">> := NewDirK}};
-handle_cast({yaw_left, Name}, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
-  <<"directionK">> := DirK, <<"name">> := Name} = Map) ->
+  {noreply, Map#{<<"direction">> := #{<<"i">> => NewDirI, <<"j">> => NewDirJ, <<"k">> => NewDirK}}};
+handle_cast({yaw_left, Name}, #{<<"i">> := DirI, <<"j">> := DirJ,
+  <<"k">> := DirK, <<"name">> := Name} = Map) ->
   [NewDirI, NewDirJ, NewDirK] = yaw_left({DirI, DirJ, DirK}),
-  {noreply, Map#{<<"directionI">> := NewDirI, <<"directionJ">> := NewDirJ, <<"directionK">> := NewDirK}};
+  {noreply, Map#{<<"direction">> := #{<<"i">> => NewDirI, <<"j">> => NewDirJ, <<"k">> => NewDirK}}};
 handle_cast(Info, State) ->
   io:fwrite("handle_cast no_action: ~p~n", [Info]),
   {noreply, State}.
 
-handle_info(timeout_tick, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ,
-  <<"directionK">> := DirK, <<"message">> := _,
-  <<"positionX">> := PosX, <<"positionY">> := PosY,
-  <<"positionZ">> := PosZ, <<"speed">> := Speed} = Map) ->
+handle_info(timeout_tick, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK},
+  <<"position">> := #{<<"x">> := PosX,<<"y">> := PosY,<<"z">> := PosZ}, <<"speed">> := Speed} = Map) ->
   erlang:send_after(20, self(), timeout_tick),
   {NewPosX, NewPosY, NewPosZ} = forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed),
-  {noreply, Map#{<<"positionX">> := NewPosX, <<"positionY">> := NewPosY, <<"positionZ">> := NewPosZ}};
+  {noreply, Map#{<<"position">> := #{<<"x">> => NewPosX,<<"y">> => NewPosY,<<"z">> => NewPosZ}, <<"speed">> := Speed}};
 handle_info(_Info, State) ->
   io:fwrite("handle_info: ~p~n", [State]),
   {noreply, State}.

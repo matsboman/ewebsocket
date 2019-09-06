@@ -62,7 +62,7 @@ code_change(_OldVsn, State, _Extra) ->
 %======================================================================================================
 
 check_collisions(StatusList) ->
-  io:fwrite("check_collisions #############################: ~p~n", [StatusList]),
+%%  io:fwrite("check_collisions #############################: ~p~n", [StatusList]),
   check_collisions(StatusList, StatusList).
 check_collisions([], StatusList) ->
   ok;
@@ -70,7 +70,7 @@ check_collisions([Status | T], StatusList) ->
   check_collisions_impl(Status, StatusList),
   check_collisions(T, StatusList).
 
-check_collisions_impl(Status, []) ->
+check_collisions_impl(_Status, []) ->
   ok;
 check_collisions_impl(Status, [Peer | T]) ->
   is_collision(Status, Peer),
@@ -78,9 +78,16 @@ check_collisions_impl(Status, [Peer | T]) ->
 
 is_collision(#{<<"name">> := Name},  #{<<"name">> := Name}) ->
   ok;
-is_collision(#{<<"position">> := PosA}, #{<<"position">> := PosB}) ->
-  io:fwrite("is collision: ~p ~p~n", [PosA, PosB]),
-  ok.
+is_collision(#{<<"type">> := <<"planet">>},  #{<<"type">> := <<"planet">>}) ->
+%%  io:fwrite("peer planets are not checked for collision...~n", []),
+  ok;
+is_collision(#{<<"name">> := Name1, <<"position">> := #{<<"x">> := X1, <<"y">> := Y1, <<"z">> := Z1}},
+    #{<<"name">> := Name2, <<"position">> := #{<<"x">> := X2, <<"y">> := Y2, <<"z">> := Z2}}) ->
+  Distance = math:sqrt(math:pow(X2 - X1, 2) + math:pow(Y2 - Y1, 2) + math:pow(Z2 - Z1, 2)),
+  if
+    Distance < 2 -> io:fwrite("Distance: ~p~n", [{Name1, Name2, Distance}]);
+    true -> ok
+  end.
 
 handle_ship_action({fire, Name}, PidList) ->
   NewPidList = call_to_ship({fire, Name}, PidList),

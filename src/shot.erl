@@ -48,11 +48,11 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Info, State) ->
   {noreply, State}.
 
-handle_info(timeout_tick, #{<<"directionI">> := DirI, <<"directionJ">> := DirJ, <<"directionK">> := DirK,
-  <<"positionX">> := PosX, <<"positionY">> := PosY, <<"positionZ">> := PosZ, <<"speed">> := Speed} = Map) ->
+handle_info(timeout_tick, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK},
+  <<"position">> := #{<<"x">> := PosX,<<"y">> := PosY,<<"z">> := PosZ}, <<"speed">> := Speed} = Map) ->
   erlang:send_after(20, self(), timeout_tick),
   {NewPosX, NewPosY, NewPosZ} = forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed),
-  {noreply, Map#{<<"positionX">> := NewPosX, <<"positionY">> := NewPosY, <<"positionZ">> := NewPosZ}};
+  {noreply, Map#{<<"position">> := #{<<"x">> => NewPosX,<<"y">> => NewPosY,<<"z">> => NewPosZ}}};
 handle_info(die, State) ->
   io:fwrite("handle_info die: ~p~n", [State]),
   {noreply, State#{<<"message">> := <<"died">>}};
