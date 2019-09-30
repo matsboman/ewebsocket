@@ -50,7 +50,6 @@ handle_call({fire, _}, _From, Map) ->
   {reply, no_action, Map};
 handle_call(_Request, _From, State) ->
   JSONObject = State#{<<"type">> => <<"ship">>},
-%%  io:fwrite("ship JSONObject ~p~n", [JSONObject]),
   {reply, JSONObject, State}.
 
 handle_cast(_, #{<<"message">> := <<"died">>} = State) ->
@@ -75,10 +74,10 @@ handle_cast(Info, State) ->
   {noreply, State}.
 
 handle_info(timeout_tick, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK},
-  <<"position">> := #{<<"x">> := PosX,<<"y">> := PosY,<<"z">> := PosZ}, <<"speed">> := Speed} = Map) ->
+  <<"position">> := #{<<"x">> := PosX, <<"y">> := PosY, <<"z">> := PosZ}, <<"speed">> := Speed} = Map) ->
   erlang:send_after(20, self(), timeout_tick),
   {NewPosX, NewPosY, NewPosZ} = forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed),
-  {noreply, Map#{<<"position">> := #{<<"x">> => NewPosX,<<"y">> => NewPosY,<<"z">> => NewPosZ}, <<"speed">> := Speed}};
+  {noreply, Map#{<<"position">> := #{<<"x">> => NewPosX, <<"y">> => NewPosY, <<"z">> => NewPosZ}, <<"speed">> := Speed}};
 handle_info(terminate, State) ->
   io:fwrite("handle_info terminate: ~p~n", [State]),
   {noreply, State#{<<"message">> := <<"terminated">>}};

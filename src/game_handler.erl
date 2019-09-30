@@ -35,7 +35,6 @@ init([]) ->
 handle_call(_Request, _From, PidList) ->
   {ok, ObjectStatus, NewPidList} = getObjectStatus(PidList, [], []),
   check_collisions(ObjectStatus, PidList),
-%%  io:fwrite("ObjectStatus: ~p~n", [ObjectStatus]),
   {reply, ObjectStatus, NewPidList}.
 
 handle_cast({yaw_right, _Name} = Action, PidList) ->
@@ -74,29 +73,28 @@ check_collisions_impl(_Status, [], _PidList) ->
 check_collisions_impl(Status, [Peer | T], PidList) ->
   case is_collision(Status, Peer) of
     {true, {Name1, Name2}} ->
-        handle_ship_action({collision, {Name1, Name2}}, PidList);
+      handle_ship_action({collision, {Name1, Name2}}, PidList);
     _ -> ok
   end,
   check_collisions_impl(Status, T, PidList).
 
-is_collision(#{<<"message">> := <<"died">>},  _) ->
+is_collision(#{<<"message">> := <<"died">>}, _) ->
   ok;
 is_collision(_, #{<<"message">> := <<"died">>}) ->
   ok;
-is_collision(#{<<"fired_by">> := Name},  #{<<"name">> := Name}) ->
+is_collision(#{<<"fired_by">> := Name}, #{<<"name">> := Name}) ->
   ok;
-is_collision(#{<<"name">> := Name},  #{<<"fired_by">> := Name}) ->
+is_collision(#{<<"name">> := Name}, #{<<"fired_by">> := Name}) ->
   ok;
-is_collision(#{<<"name">> := Name},  #{<<"name">> := Name}) ->
+is_collision(#{<<"name">> := Name}, #{<<"name">> := Name}) ->
   ok;
-is_collision(#{<<"type">> := <<"planet">>},  #{<<"type">> := <<"planet">>}) ->
-%%  io:fwrite("peer planets are not checked for collision...~n", []),
+is_collision(#{<<"type">> := <<"planet">>}, #{<<"type">> := <<"planet">>}) ->
   ok;
 is_collision(#{<<"name">> := Name1, <<"position">> := #{<<"x">> := X1, <<"y">> := Y1, <<"z">> := Z1}},
     #{<<"name">> := Name2, <<"position">> := #{<<"x">> := X2, <<"y">> := Y2, <<"z">> := Z2}}) ->
   Distance = math:sqrt(math:pow(X2 - X1, 2) + math:pow(Y2 - Y1, 2) + math:pow(Z2 - Z1, 2)),
   if
-    Distance < 2 -> 
+    Distance < 2 ->
       io:fwrite("Distance: ~p~n", [{Name1, Name2, Distance}]),
       {true, {Name1, Name2}};
     true -> ok
@@ -129,24 +127,26 @@ getShipShotStatus({Id, Pid}, T, Statuses, NewPidList) ->
   end.
 
 cast_to_ship(Action, PidList) ->
-  lists:foreach(fun({Object,  Pid}) -> case Object of
-                                        ship ->
-                                          gen_server:cast(Pid, Action);
-                                        _ -> ok
-                                      end
-                end, PidList).
+  lists:foreach(
+    fun({Object, Pid}) ->
+      case Object of
+        ship ->
+          gen_server:cast(Pid, Action);
+        _ -> ok
+      end
+    end, PidList).
 
 call_to_ship(Action, PidList) ->
   call_to_ship(Action, PidList, PidList).
 call_to_ship(_Action, [], NewPidList) ->
   {ok, NewPidList};
 call_to_ship(Action, [{ship, Pid} | T], NewPidList) ->
-    case gen_server:call(Pid, Action) of
-      no_action ->
-        call_to_ship(Action, T, NewPidList);
-      ShotPid ->
-        io:fwrite("fired shot...~p~n", [ShotPid]),
-        call_to_ship(Action, T, [{shot, ShotPid} | NewPidList])
-    end;
-call_to_ship(Action, [_| T], NewPidList) ->
+  case gen_server:call(Pid, Action) of
+    no_action ->
+      call_to_ship(Action, T, NewPidList);
+    ShotPid ->
+      io:fwrite("fired shot...~p~n", [ShotPid]),
+      call_to_ship(Action, T, [{shot, ShotPid} | NewPidList])
+  end;
+call_to_ship(Action, [_ | T], NewPidList) ->
   call_to_ship(Action, T, NewPidList).
