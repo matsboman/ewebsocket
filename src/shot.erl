@@ -37,14 +37,20 @@ start_link(Seed) ->
 init(Seed) ->
   io:fwrite("init shot~p~n", [Seed]),
   erlang:send_after(20, self(), timeout_tick),
-  erlang:send_after(10000, self(), die),
-  erlang:send_after(15000, self(), terminate),
-  {ok, Seed}.
+  erlang:send_after(timer:seconds(8), self(), die),
+  %% 2 seconds between die and terminate to give time to update the clients
+  erlang:send_after(timer:seconds(9), self(), terminate),
+  {ok, Seed#{<<"type">> => <<"shot">>}}.
 
 handle_call(_Request, _From, State) ->
-  JSONObject = State#{<<"type">> => <<"shot">>},
-  {reply, JSONObject, State}.
+  {reply, State, State}.
 
+handle_cast({collision, {Name1, _Name2}}, #{<<"name">> := Name1} = State) ->
+  erlang:send_after(timer:seconds(1), self(), terminate),
+  {noreply, State#{<<"message">> := <<"died">>}};
+handle_cast({collision, {_Name1, Name2}}, #{<<"name">> := Name2} = State) ->
+  erlang:send_after(timer:seconds(1), self(), terminate),
+  {noreply, State#{<<"message">> := <<"died">>}};
 handle_cast(_Info, State) ->
   {noreply, State}.
 
@@ -57,7 +63,7 @@ handle_info(die, State) ->
   io:fwrite("handle_info die: ~p~n", [State]),
   {noreply, State#{<<"message">> := <<"died">>}};
 handle_info(terminate, State) ->
-  io:fwrite("handle_info die: ~p~n", [State]),
+  io:fwrite("handle_info terminate: ~p~n", [State]),
   {noreply, State#{<<"message">> := <<"terminated">>}};
 handle_info(_Info, State) ->
   io:fwrite("handle_info: ~p~n", [State]),

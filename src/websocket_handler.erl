@@ -1,4 +1,4 @@
--module(ws_h).
+-module(websocket_handler).
 
 -export([init/2]).
 -export([websocket_init/1]).
@@ -44,6 +44,6 @@ handle_message(#{<<"name">> := Name, <<"message">> := <<"fire">>}, State) ->
 handle_message(#{<<"message">> := <<"keepalive">>}, State) ->
   {reply, {text, jsone:encode(#{<<"message">> => <<"ping">>})}, State};
 handle_message(#{<<"message">> := <<"newship">>} = Msg, State) ->
-  gen_server:cast(game_handler, Msg#{<<"shots_fired">> => 0}),
+  gen_server:cast(game_handler, {new_ship, Msg#{<<"shots_fired">> => 0}}),
   {reply, {text, jsone:encode(#{<<"message">> => <<"new ship created">>, <<"values">> => Msg})}, State}.
 

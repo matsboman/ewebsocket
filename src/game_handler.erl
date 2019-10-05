@@ -27,9 +27,15 @@ start_link() ->
 
 init([]) ->
   process_flag(trap_exit, true),
-  {ok, Pid1} = planet_object:start_link({"sun", {0.0, 0.0, 0.0, 0, 0, 1}}),
-  {ok, Pid2} = planet_object:start_link({"earth", {1.0, 0.0, 0.0, 10, 0, 5}}),
-  {ok, Pid3} = planet_object:start_link({"venus", {1.0, 0.0, 0.0, 40, math:pi(), 10}}),
+  {ok, Pid1} = planet:start_link(
+    #{<<"name">> => <<"sun">>, <<"x">> => 0.0, <<"y">> => 0.0, <<"z">> => 0.0,
+      <<"orbit_radius">> => 0, <<"t0">> => 0, <<"t">> => 1}),
+  {ok, Pid2} = planet:start_link(
+    #{<<"name">> => <<"earth">>, <<"x">> => 1.0, <<"y">> => 0.0, <<"z">> => 0.0,
+      <<"orbit_radius">> => 10, <<"t0">> => 0, <<"t">> => 5}),
+  {ok, Pid3} = planet:start_link(
+    #{<<"name">> => <<"venus">>, <<"x">> => 1.0, <<"y">> => 0.0, <<"z">> => 0.0,
+      <<"orbit_radius">> => 40, <<"t0">> => math:pi(), <<"t">> => 10}),
   {ok, [{planet, Pid1}, {planet, Pid2}, {planet, Pid3}]}.
 
 handle_call(_Request, _From, PidList) ->
@@ -38,14 +44,16 @@ handle_call(_Request, _From, PidList) ->
   {reply, ObjectStatus, NewPidList}.
 
 handle_cast({yaw_right, _Name} = Action, PidList) ->
-  handle_ship_action(Action, PidList);
+  handle_action(Action, PidList);
 handle_cast({yaw_left, _Name} = Action, PidList) ->
-  handle_ship_action(Action, PidList);
+  handle_action(Action, PidList);
 handle_cast({fire, Name}, PidList) ->
-  handle_ship_action({fire, Name}, PidList);
-handle_cast(Info, PidList) ->
+  handle_action({fire, Name}, PidList);
+handle_cast({new_ship, Info}, PidList) ->
   {ok, Pid} = ship:start_link(Info),
-  {noreply, [{ship, Pid} | PidList]}.
+  {noreply, [{ship, Pid} | PidList]};
+handle_cast(_Info, PidList) ->
+  {noreply, PidList}.
 
 handle_info(_Info, State) ->
   {noreply, State}.
@@ -73,7 +81,7 @@ check_collisions_impl(_Status, [], _PidList) ->
 check_collisions_impl(Status, [Peer | T], PidList) ->
   case is_collision(Status, Peer) of
     {true, {Name1, Name2}} ->
-      handle_ship_action({collision, {Name1, Name2}}, PidList);
+      handle_action({collision, {Name1, Name2}}, PidList);
     _ -> ok
   end,
   check_collisions_impl(Status, T, PidList).
@@ -94,18 +102,17 @@ is_collision(#{<<"name">> := Name1, <<"position">> := #{<<"x">> := X1, <<"y">> :
     #{<<"name">> := Name2, <<"position">> := #{<<"x">> := X2, <<"y">> := Y2, <<"z">> := Z2}}) ->
   Distance = math:sqrt(math:pow(X2 - X1, 2) + math:pow(Y2 - Y1, 2) + math:pow(Z2 - Z1, 2)),
   if
-    Distance < 2 ->
+    Distance < 1 ->
       io:fwrite("Distance: ~p~n", [{Name1, Name2, Distance}]),
       {true, {Name1, Name2}};
     true -> ok
   end.
 
-handle_ship_action({fire, Name}, PidList) ->
+handle_action({fire, Name}, PidList) ->
   {ok, NewPidList} = call_to_ship({fire, Name}, PidList),
-%%  io:fwrite("NewPidList: ~p~n", [NewPidList]),
   {noreply, NewPidList};
-handle_ship_action(Action, PidList) ->
-  cast_to_ship(Action, PidList),
+handle_action(Action, PidList) ->
+  cast_to_entity(Action, PidList),
   {noreply, PidList}.
 
 getObjectStatus([], Statuses, NewPidList) ->
@@ -126,11 +133,13 @@ getShipShotStatus({Id, Pid}, T, Statuses, NewPidList) ->
       getObjectStatus(T, [Status | Statuses], [{Id, Pid} | NewPidList])
   end.
 
-cast_to_ship(Action, PidList) ->
+cast_to_entity(Action, PidList) ->
   lists:foreach(
     fun({Object, Pid}) ->
       case Object of
         ship ->
+          gen_server:cast(Pid, Action);
+        shot ->
           gen_server:cast(Pid, Action);
         _ -> ok
       end
