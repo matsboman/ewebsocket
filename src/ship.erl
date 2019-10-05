@@ -39,35 +39,27 @@ init(Seed) ->
   erlang:send_after(20, self(), timeout_tick),
   {ok, Seed#{<<"type">> => <<"ship">>, <<"radius">> => 0.5, <<"shots_fired">> => 0}}.
 
-handle_call({fire, Name}, _From, #{<<"name">> := Name} = Map) ->
+handle_call(fire, _From, #{<<"name">> := Name} = Map) ->
   io:fwrite("ship firing...~n", []),
   ShotsFired = maps:get(<<"shots_fired">>, Map) + 1,
-  ShotMap = Map#{<<"fired_by">> => Name, <<"message">> => <<"new">>, <<"speed">> => maps:get(<<"speed">>, Map) * 10,
-    <<"name">> => list_to_binary(binary_to_list(Name) ++ integer_to_list(ShotsFired))},
+  ShotName = list_to_binary(binary_to_list(Name) ++ integer_to_list(ShotsFired)),
+  ShotMap = Map#{<<"fired_by">> => Name, <<"message">> => <<"new">>,
+    <<"speed">> => maps:get(<<"speed">>, Map) * 10, <<"name">> => ShotName},
   {ok, Pid} = shot:start_link(ShotMap),
-  {reply, Pid, Map#{<<"shots_fired">> := ShotsFired}};
-handle_call({fire, _}, _From, Map) ->
-  {reply, no_action, Map};
-handle_call({ship_exists, Name}, _From, #{<<"name">> := Name} = Map) ->
-  {reply, true, Map};
-handle_call({ship_exists, Name}, _From, Map) ->
-  {reply, false, Map};
+  {reply, {ShotName, Pid}, Map#{<<"shots_fired">> := ShotsFired}};
 handle_call(_Request, _From, State) ->
   {reply, State, State}.
 
 handle_cast(_, #{<<"message">> := <<"died">>} = State) ->
   io:fwrite("handle_cast no_action died already: ~p~n", [State]),
   {noreply, State};
-handle_cast({yaw_right, Name}, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK}, <<"name">> := Name} = Map) ->
+handle_cast(yaw_right, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK}} = Map) ->
   [NewDirI, NewDirJ, NewDirK] = yaw_right({DirI, DirJ, DirK}),
   {noreply, Map#{<<"direction">> := #{<<"i">> => NewDirI, <<"j">> => NewDirJ, <<"k">> => NewDirK}}};
-handle_cast({yaw_left, Name}, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK}, <<"name">> := Name} = Map) ->
+handle_cast(yaw_left, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <<"k">> := DirK}} = Map) ->
   [NewDirI, NewDirJ, NewDirK] = yaw_left({DirI, DirJ, DirK}),
   {noreply, Map#{<<"direction">> := #{<<"i">> => NewDirI, <<"j">> => NewDirJ, <<"k">> => NewDirK}}};
-handle_cast({collision, {Name1, _Name2}}, #{<<"name">> := Name1} = State) ->
-  erlang:send_after(timer:seconds(2), self(), terminate),
-  {noreply, State#{<<"message">> := <<"died">>}};
-handle_cast({collision, {_Name1, Name2}}, #{<<"name">> := Name2} = State) ->
+handle_cast(collision, State) ->
   erlang:send_after(timer:seconds(2), self(), terminate),
   {noreply, State#{<<"message">> := <<"died">>}};
 handle_cast(Info, State) ->

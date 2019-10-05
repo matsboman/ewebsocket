@@ -36,23 +36,19 @@ init([]) ->
   {ok, Pid3} = planet:start_link(
     #{<<"name">> => <<"venus">>, <<"x">> => 1.0, <<"y">> => 0.0, <<"z">> => 0.0,
       <<"orbit_radius">> => 40, <<"t0">> => math:pi(), <<"t">> => 10, <<"radius">> => 1.4}),
-  {ok, [{planet, Pid1}, {planet, Pid2}, {planet, Pid3}]}.
+  {ok, [{planet, <<"sun">>, Pid1}, {planet, <<"earth">>, Pid2}, {planet, <<"venus">>, Pid3}]}.
 
-handle_call({new_ship, #{<<"name">> := Name} = Info}, _From, PidList) ->
-  handle_new_ship(Info, PidList, ship_exists(Name, PidList));
+handle_call({new_ship, Info}, _From, PidList) ->
+  handle_new_ship(Info, PidList, PidList);
 handle_call(_Request, _From, PidList) ->
   {ok, ObjectStatus, NewPidList} = getObjectStatus(PidList, [], []),
   check_collisions(ObjectStatus, PidList),
   {reply, ObjectStatus, NewPidList}.
 
-handle_cast({yaw_right, _Name} = Action, PidList) ->
-  handle_action(Action, PidList);
-handle_cast({yaw_left, _Name} = Action, PidList) ->
-  handle_action(Action, PidList);
-handle_cast({fire, Name}, PidList) ->
-  handle_action({fire, Name}, PidList);
-handle_cast(_Info, PidList) ->
-  {noreply, PidList}.
+handle_cast({fire, _Name} = Action, PidList) ->
+  {noreply, call_to_ship(Action, PidList)};
+handle_cast(Action, PidList) ->
+  handle_action(Action, PidList).
 
 handle_info(_Info, State) ->
   {noreply, State}.
@@ -67,11 +63,13 @@ code_change(_OldVsn, State, _Extra) ->
 % Internal
 %======================================================================================================
 
-handle_new_ship(_Info, PidList, true) ->
-  {reply, {error, already_exists}, PidList};
-handle_new_ship(Info, PidList, false) ->
+handle_new_ship(#{<<"name">> := Name} = Info, PidList, []) ->
   {ok, Pid} = ship:start_link(Info),
-  {reply, ok, [{ship, Pid} | PidList]}.
+  {reply, ok, [{ship, Name, Pid} | PidList]};
+handle_new_ship(#{<<"name">> := Name}, PidList, [{ship, Name, _} | _]) ->
+  {reply, {error, already_exists}, PidList};
+handle_new_ship(Info, PidList, [_ | T]) ->
+  handle_new_ship(Info, PidList, T).
 
 check_collisions(StatusList, PidList) ->
   check_collisions(StatusList, StatusList, PidList).
@@ -122,60 +120,42 @@ handle_action(Action, PidList) ->
 
 getObjectStatus([], Statuses, NewPidList) ->
   {ok, Statuses, NewPidList};
-getObjectStatus([{shot, Pid} | T], Statuses, NewPidList) ->
-  getShipShotStatus({shot, Pid}, T, Statuses, NewPidList);
-getObjectStatus([{ship, Pid} | T], Statuses, NewPidList) ->
-  getShipShotStatus({ship, Pid}, T, Statuses, NewPidList);
-getObjectStatus([{planet, Pid} | T], Statuses, NewPidList) ->
-  getObjectStatus(T, [gen_server:call(Pid, []) | Statuses], [{planet, Pid} | NewPidList]).
-
-getShipShotStatus({Id, Pid}, T, Statuses, NewPidList) ->
+getObjectStatus([{planet, _Name, Pid} = PidInfo | T], Statuses, NewPidList) ->
+  getObjectStatus(T, [gen_server:call(Pid, []) | Statuses], [PidInfo | NewPidList]);
+getObjectStatus([{_Id, _Name, Pid} = PidInfo | T], Statuses, NewPidList) ->
   case gen_server:call(Pid, []) of
     #{<<"message">> := <<"terminated">>} ->
       gen_server:stop(Pid),
       getObjectStatus(T, Statuses, NewPidList);
     Status ->
-      getObjectStatus(T, [Status | Statuses], [{Id, Pid} | NewPidList])
+      getObjectStatus(T, [Status | Statuses], [PidInfo | NewPidList])
   end.
 
-cast_to_entity(Action, PidList) ->
-  lists:foreach(
-    fun({Object, Pid}) ->
-      case Object of
-        ship ->
-          gen_server:cast(Pid, Action);
-        shot ->
-          gen_server:cast(Pid, Action);
-        _ -> ok
-      end
-    end, PidList).
+cast_to_entity(_, []) ->
+  ok;
+cast_to_entity(Action, [{planet, _, _} | T]) ->
+  cast_to_entity(Action, T);
+cast_to_entity({collision, {Name, _}} = Action, [{_, Name, Pid} | T]) ->
+  gen_server:cast(Pid, collision),
+  cast_to_entity(Action, T);
+cast_to_entity({collision, {_, Name}} = Action, [{_, Name, Pid} | T]) ->
+  gen_server:cast(Pid, collision),
+  cast_to_entity(Action, T);
+cast_to_entity({collision, _} = Action, [_ | T]) ->
+  cast_to_entity(Action, T);
+cast_to_entity({Action, Name}, [{_, Name, Pid} | _]) ->
+  gen_server:cast(Pid, Action),
+  cast_to_entity(done, []);
+cast_to_entity(Action, [_ | T]) ->
+  cast_to_entity(Action, T).
 
 call_to_ship(Action, PidList) ->
   call_to_ship(Action, PidList, PidList).
 call_to_ship(_Action, [], NewPidList) ->
-  {ok, NewPidList};
-call_to_ship(Action, [{ship, Pid} | T], NewPidList) ->
-  case gen_server:call(Pid, Action) of
-    no_action ->
-      call_to_ship(Action, T, NewPidList);
-    ShotPid ->
-      io:fwrite("fired shot...~p~n", [ShotPid]),
-      call_to_ship(Action, T, [{shot, ShotPid} | NewPidList])
-  end;
-call_to_ship(Action, [_ | T], NewPidList) ->
-  call_to_ship(Action, T, NewPidList).
+  NewPidList;
+call_to_ship({fire, Name}, [{ship, Name, Pid} | _], PidList) ->
+  {ShotName, ShotPid} = gen_server:call(Pid, fire),
+  [{shot, ShotName, ShotPid} | PidList];
+call_to_ship(Action, [_ | T], PidList) ->
+  call_to_ship(Action, T, PidList).
 
-ship_exists(Name, PidList) ->
-  ship_exists(Name, PidList, false).
-ship_exists(_Name, [], Result) ->
-  io:fwrite("ship_exists: ~p~n", [Result]),
-  Result;
-ship_exists(Name, [{ship, Pid} | T], false) ->
-  case gen_server:call(Pid, {ship_exists, Name}) of
-    true ->
-      ship_exists(Name, [], true);
-    false ->
-      ship_exists(Name, T, false)
-  end;
-ship_exists(Name, [_NotShipPid | T], false) ->
-  ship_exists(Name, T, false).

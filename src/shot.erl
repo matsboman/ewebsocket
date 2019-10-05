@@ -45,11 +45,8 @@ init(Seed) ->
 handle_call(_Request, _From, State) ->
   {reply, State, State}.
 
-handle_cast({collision, {Name1, _Name2}}, #{<<"name">> := Name1} = State) ->
-  erlang:send_after(timer:seconds(1), self(), terminate),
-  {noreply, State#{<<"message">> := <<"died">>}};
-handle_cast({collision, {_Name1, Name2}}, #{<<"name">> := Name2} = State) ->
-  erlang:send_after(timer:seconds(1), self(), terminate),
+handle_cast(collision, State) ->
+  erlang:send_after(timer:seconds(2), self(), terminate),
   {noreply, State#{<<"message">> := <<"died">>}};
 handle_cast(_Info, State) ->
   {noreply, State}.
