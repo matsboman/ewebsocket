@@ -16,7 +16,6 @@ websocket_init(_State) ->
 
 websocket_handle({text, Msg}, State) ->
   MsgMap = jsone:decode(Msg),
-  io:fwrite("websocket_handle ~p~n", [{State, MsgMap}]),
   handle_message(MsgMap, State);
 websocket_handle(_Data, State) ->
   {ok, State}.
@@ -24,7 +23,6 @@ websocket_handle(_Data, State) ->
 websocket_info({timeout, _Ref, _Msg}, State) ->
   erlang:start_timer(30, self(), <<"How' you doin'?">>),
   Result = gen_server:call(game_handler, []),
-%%  io:fwrite("Result ~p~n", [Result]),
   {reply, {text, jsone:encode(#{<<"message">> => <<"status">>, <<"values">> => Result})}, State + 1};
 websocket_info(_Info, State) ->
   {ok, State}.
@@ -44,6 +42,10 @@ handle_message(#{<<"name">> := Name, <<"message">> := <<"fire">>}, State) ->
 handle_message(#{<<"message">> := <<"keepalive">>}, State) ->
   {reply, {text, jsone:encode(#{<<"message">> => <<"ping">>})}, State};
 handle_message(#{<<"message">> := <<"newship">>} = Msg, State) ->
-  gen_server:cast(game_handler, {new_ship, Msg#{<<"shots_fired">> => 0}}),
-  {reply, {text, jsone:encode(#{<<"message">> => <<"new ship created">>, <<"values">> => Msg})}, State}.
+  case gen_server:call(game_handler, {new_ship, Msg}) of
+    ok ->
+      {reply, {text, jsone:encode(#{<<"message">> => <<"new ship created">>, <<"values">> => Msg})}, State};
+    {error, already_exists} ->
+      {reply, {text, jsone:encode(#{<<"message">> => <<"error, ship already exists">>})}, State}
+  end.
 

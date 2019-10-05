@@ -37,7 +37,7 @@ start_link(Seed) ->
 init(Seed) ->
   io:fwrite("init ship~p~n", [Seed]),
   erlang:send_after(20, self(), timeout_tick),
-  {ok, Seed#{<<"type">> => <<"ship">>}}.
+  {ok, Seed#{<<"type">> => <<"ship">>, <<"radius">> => 0.5, <<"shots_fired">> => 0}}.
 
 handle_call({fire, Name}, _From, #{<<"name">> := Name} = Map) ->
   io:fwrite("ship firing...~n", []),
@@ -48,6 +48,10 @@ handle_call({fire, Name}, _From, #{<<"name">> := Name} = Map) ->
   {reply, Pid, Map#{<<"shots_fired">> := ShotsFired}};
 handle_call({fire, _}, _From, Map) ->
   {reply, no_action, Map};
+handle_call({ship_exists, Name}, _From, #{<<"name">> := Name} = Map) ->
+  {reply, true, Map};
+handle_call({ship_exists, Name}, _From, Map) ->
+  {reply, false, Map};
 handle_call(_Request, _From, State) ->
   {reply, State, State}.
 
@@ -61,10 +65,10 @@ handle_cast({yaw_left, Name}, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> :=
   [NewDirI, NewDirJ, NewDirK] = yaw_left({DirI, DirJ, DirK}),
   {noreply, Map#{<<"direction">> := #{<<"i">> => NewDirI, <<"j">> => NewDirJ, <<"k">> => NewDirK}}};
 handle_cast({collision, {Name1, _Name2}}, #{<<"name">> := Name1} = State) ->
-  erlang:send_after(timer:seconds(1), self(), terminate),
+  erlang:send_after(timer:seconds(2), self(), terminate),
   {noreply, State#{<<"message">> := <<"died">>}};
 handle_cast({collision, {_Name1, Name2}}, #{<<"name">> := Name2} = State) ->
-  erlang:send_after(timer:seconds(1), self(), terminate),
+  erlang:send_after(timer:seconds(2), self(), terminate),
   {noreply, State#{<<"message">> := <<"died">>}};
 handle_cast(Info, State) ->
   io:fwrite("handle_cast no_action: ~p~n", [Info]),

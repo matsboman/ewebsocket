@@ -39,8 +39,8 @@ init(Seed) ->
   erlang:send_after(20, self(), timeout_tick),
   erlang:send_after(timer:seconds(8), self(), die),
   %% 2 seconds between die and terminate to give time to update the clients
-  erlang:send_after(timer:seconds(9), self(), terminate),
-  {ok, Seed#{<<"type">> => <<"shot">>}}.
+  erlang:send_after(timer:seconds(10), self(), terminate),
+  {ok, Seed#{<<"type">> => <<"shot">>, <<"radius">> => 0.1}}.
 
 handle_call(_Request, _From, State) ->
   {reply, State, State}.
