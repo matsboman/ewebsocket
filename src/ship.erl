@@ -47,7 +47,7 @@ handle_call(fire, _From, #{<<"name">> := Name} = Map) ->
     <<"speed">> => maps:get(<<"speed">>, Map) * 10, <<"name">> => ShotName},
   {ok, Pid} = shot:start_link(ShotMap),
   {reply, {ShotName, Pid}, Map#{<<"shots_fired">> := ShotsFired}};
-handle_call(_Request, _From, State) ->
+handle_call(status_request, _From, State) ->
   {reply, State, State}.
 
 handle_cast(_, #{<<"message">> := <<"died">>} = State) ->
@@ -60,6 +60,7 @@ handle_cast(yaw_left, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := DirJ, <
   [NewDirI, NewDirJ, NewDirK] = yaw_left({DirI, DirJ, DirK}),
   {noreply, Map#{<<"direction">> := #{<<"i">> => NewDirI, <<"j">> => NewDirJ, <<"k">> => NewDirK}}};
 handle_cast(collision, State) ->
+  io:fwrite("###################### ship collision ################### ~p~n", [State]),
   erlang:send_after(timer:seconds(2), self(), terminate),
   {noreply, State#{<<"message">> := <<"died">>}};
 handle_cast(Info, State) ->

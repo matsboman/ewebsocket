@@ -39,10 +39,10 @@ init(Seed) ->
   erlang:send_after(20, self(), timeout_tick),
   {ok, {Seed, 0}}.
 
-handle_call(_Request, _From, {#{<<"name">> := Name, <<"x">> := X, <<"y">> := Y, <<"z">> := Z, <<"radius">> := R}, _Tau} = State) ->
-  JSONObject = #{<<"type">> => <<"planet">>, <<"name">> => Name,
+handle_call(status_request, _From, {#{<<"name">> := Name, <<"x">> := X, <<"y">> := Y, <<"z">> := Z, <<"radius">> := R}, _Tau} = State) ->
+  Status = #{<<"type">> => <<"planet">>, <<"name">> => Name,
     <<"position">> => #{<<"x">> => X, <<"y">> => Y, <<"z">> => Z}, <<"radius">> => R},
-  {reply, JSONObject, State}.
+  {reply, Status, State}.
 
 handle_cast(_Info, State) ->
   {noreply, State}.

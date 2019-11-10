@@ -42,10 +42,14 @@ init(Seed) ->
   erlang:send_after(timer:seconds(10), self(), terminate),
   {ok, Seed#{<<"type">> => <<"shot">>, <<"radius">> => 0.1}}.
 
-handle_call(_Request, _From, State) ->
+handle_call(status_request, _From, State) ->
   {reply, State, State}.
 
+handle_cast(_, #{<<"message">> := <<"died">>} = State) ->
+  io:fwrite("handle_cast no_action died already: ~p~n", [State]),
+  {noreply, State};
 handle_cast(collision, State) ->
+  io:fwrite("###################### shot collision ################### ~p~n", [State]),
   erlang:send_after(timer:seconds(2), self(), terminate),
   {noreply, State#{<<"message">> := <<"died">>}};
 handle_cast(_Info, State) ->
@@ -57,7 +61,6 @@ handle_info(timeout_tick, #{<<"direction">> := #{<<"i">> := DirI, <<"j">> := Dir
   {NewPosX, NewPosY, NewPosZ} = forward({PosX, PosY, PosZ}, {DirI, DirJ, DirK}, Speed),
   {noreply, Map#{<<"position">> := #{<<"x">> => NewPosX,<<"y">> => NewPosY,<<"z">> => NewPosZ}}};
 handle_info(die, State) ->
-  io:fwrite("handle_info die: ~p~n", [State]),
   {noreply, State#{<<"message">> := <<"died">>}};
 handle_info(terminate, State) ->
   io:fwrite("handle_info terminate: ~p~n", [State]),

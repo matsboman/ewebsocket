@@ -6,7 +6,6 @@
 -export([websocket_info/2]).
 
 init(Req, Opts) ->
-  io:fwrite("init~n", []),
   {cowboy_websocket, Req, Opts}.
 
 websocket_init(_State) ->
